@@ -1,0 +1,97 @@
+//! REALLY go over how the deletion is being handled. Intertesting stuff you should know about
+
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchExpenses, deleteExpense } from '../Redux/Action';
+import { Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import ExpenseCard from './expenseCard';
+
+const ViewExpenses = () => {
+    const dispatch = useDispatch();
+    const currUser = useSelector((state) => state.user.currUser);
+    const navigate = useNavigate();
+
+    //! idk where I conjured this code up from - ||[] makes sure that it is always an array.
+    const expenses = useSelector((state) => state.user.expenses) || [];
+
+    console.log('Redux expenses state:', expenses);
+
+    const handleBack = () => {
+        navigate(-1);
+    };
+
+    useEffect(() => {
+        if (currUser) {
+            dispatch(fetchExpenses(currUser.id));
+        }
+    }, [dispatch, currUser]);
+
+    const handleDelete = (expenseId) => {
+        dispatch(deleteExpense(currUser.id, expenseId));
+    };
+
+    const groupExpensesByMonth = (expenses) => {
+        return expenses.reduce((grouped, expense) => {
+            const [year, day, month] = expense.date.split('-');
+            //month is 0-indexed
+            const expenseDate = new Date(year, month - 1, day); 
+    
+            const monthKey = expenseDate.toLocaleString('default', { month: 'long' }) + ' ' + expenseDate.getFullYear();
+            console.log(`Expense ID: ${expense.id}, Date: ${expense.date}, Month: ${monthKey}`);
+            if (!grouped[monthKey]) {
+                grouped[monthKey] = [];
+            }
+            grouped[monthKey].push(expense);
+            return grouped;
+        }, {});
+    };
+
+    const groupedExpenses = groupExpensesByMonth(expenses);
+    // const monthKeys = Object.keys(groupedExpenses).sort((a, b) => new Date(a) - new Date(b)); // Sort the months
+    console.log('grouped expenses by month : ', groupedExpenses);
+
+    return (
+        <div className="flex flex-col md:flex-row min-h-screen bg-gray-900 p-4">
+            {/* Left Section for Expenses */}
+            <div className="flex-1 p-8">
+                <Typography variant="h4" className="text-white font-bold mb-4">Your Expenses</Typography>
+                <div className="space-y-8 pt-6">
+                    {Object.keys(groupedExpenses).length > 0 ? (
+                        Object.keys(groupedExpenses).map((month) => (
+                            <div key={month}>
+                                {/* Month heading */}
+                                <Typography variant="h5" className="text-white mb-2">
+                                    {month}
+                                </Typography>
+                                {/* Expenses for that month */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
+                                    {groupedExpenses[month].map((expense) => (
+                                        <ExpenseCard key={expense.id} expense={expense} onDelete={handleDelete} />
+                                    ))}
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <Typography className="text-white">No expenses found.</Typography>
+                    )}
+                </div>
+                <div className="mt-8">
+                    <button
+                        onClick={handleBack}
+                        className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg shadow-md transition"
+                    >
+                        Back
+                    </button>
+                </div>
+            </div>
+
+            {/* Right Section*/}
+            <div className="hidden md:flex md:flex-col md:w-1/3 p-8 bg-white rounded-lg shadow-lg">
+                <Typography variant="h5" className="text-gray-700">Additional Features</Typography>
+            </div>
+        </div>
+    );
+};
+
+export default ViewExpenses;
